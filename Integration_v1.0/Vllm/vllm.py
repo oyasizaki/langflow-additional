@@ -67,4 +67,5 @@ class VLLMComponent(Component):
 
         except requests.exceptions.RequestException as e:
             error_message = f"Error connecting to vLLM server: {str(e)}"
+
             return Message(text=error_message)

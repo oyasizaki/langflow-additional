@@ -1,0 +1,70 @@
+from langflow.custom import Component
+from langflow.io import MessageTextInput, StrInput, Output
+from langflow.schema import Message
+import requests
+import json
+
+class VLLMComponent(Component):
+    display_name = "vLLM Simple"
+    description = "Connects to a vLLM server to generate text based on input prompt."
+    icon = "cloud"
+
+    inputs = [
+        MessageTextInput(
+            name="prompt",
+            display_name="Input Prompt",
+            info="The prompt to send to the vLLM model",
+            value="Hello, how can I assist you today?"
+        ),
+        StrInput(
+            name="api_url",
+            display_name="vLLM API URL",
+            info="The URL of the vLLM server (e.g., http://localhost:8000/v1/completions)",
+            value="http://localhost:8000/v1/completions"
+        ),
+        StrInput(
+            name="api_key",
+            display_name="API Key",
+            info="API key for vLLM server authentication (optional)",
+            value=""
+        ),
+        StrInput(
+            name="model_name",
+            display_name="Model Name",
+            info="Name of the model to use (e.g., meta-llama/Llama-2-7b)",
+            value="meta-llama/Llama-2-7b"
+        ),
+    ]
+
+    outputs = [
+        Output(display_name="Generated Text", name="output", method="generate_text"),
+    ]
+
+    def generate_text(self) -> Message:
+        """Send prompt to vLLM server and return generated text."""
+        try:
+            headers = {
+                "Content-Type": "application/json",
+            }
+            if self.api_key:
+                headers["Authorization"] = f"Bearer {self.api_key}"
+
+            payload = {
+                "model": self.model_name,
+                "prompt": self.prompt,
+                "max_tokens": 512,  # Adjust as needed
+                "temperature": 0.7,
+                "top_p": 0.9,
+            }
+
+            response = requests.post(self.api_url, headers=headers, json=payload)
+            response.raise_for_status()  # Raise exception for bad status codes
+
+            result = response.json()
+            generated_text = result.get("choices", [{}])[0].get("text", "")
+
+            return Message(text=generated_text)
+
+        except requests.exceptions.RequestException as e:
+            error_message = f"Error connecting to vLLM server: {str(e)}"
+            return Message(text=error_message)
